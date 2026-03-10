@@ -4,6 +4,7 @@ import asyncio
 from pydantic import BaseModel,Field
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 import secrets
+from datetime import datetime
 
 app = FastAPI(
     title= 'My Medic API',
@@ -11,26 +12,32 @@ app = FastAPI(
     version='1.0'
 )
 
-usuarios=[
-    {"id":1,"nombre":"Aaron","motivo":"Piel sensible"},
-    {"id":2,"nombre":"Lari","motivo":"Dolores de estomago"},
-    {"id":3,"nombre":"Sebas","motivo":"Dolores de espalda"}
+pacientes=[
+    {"id":1,"nombre":"Aaron", "numeroCitas":1},
+    {"id":2,"nombre":"Lari", "numeroCitas":1},
+    {"id":3,"nombre":"Sebas", "numeroCitas":1}
 ]
 
 citas=[
-    {"id":1, "usuarioID":1 ,"fecha":"12-02-2026", "confirmacion":"true"}
+    {"id":1, "pacienteID":1 ,"fecha":"09-03-2026", "confirmacion":True, "motivo":"Piel sensible", "estado":False}
 ]
 
 #Modelo de validacion Pydantic
-class UserBase(BaseModel):
+class PacienteBase(BaseModel):
     id: int = Field(..., gt=0, description="Identificador de usuario", example="1")
     nombre: str = Field(..., min_length=5, description="Nombre del usuario")
-    motivo: str = Field(..., max_length=100, description="Motivo de consulta")
+    numeroCitas: int = Field(..., max_length=3, description="Numero de citas por usuario", example="1")
+    
 
 class CitasBase(BaseModel):
     id: int = Field(..., gt=0, description="Identificador de citas", example="1")
-    usuarioID: int = Field(..., gt=0, description="Identificador de usuario", example="1")
+    pacienteID: int = Field(..., gt=0, description="Identificador de usuario", example="1")
+    fecha: int = Field(..., le=datetime.now().date, description="Fecha de consulta")
+    motivo: str = Field(..., max_length=100, description="Motivo de consulta")
+    estado: bool = Field(..., default=False, description="Estado de consulta")
     
+Citas = []    
+
 #***************************
 #Seguridad con HTTP Basic
 #***************************
@@ -59,51 +66,51 @@ async def consultaOp(id:Optional[int]=None):
     else:
         return {"Aviso":"No se proporcionó ID"}
 
-@app.get("/v1/users/", tags=['CRUD Citas',status.HTTP_200_OK])
-async def consultaUsuarios(usuarioAuth:str = Depends(verificar_Peticion)):
+@app.get("/v1/citas/", tags=['Citas Medicas'])
+async def consultaCitas(usuarioAuth:str = Depends(verificar_Peticion)):
     return{
        "status":"200",
        "total":len(citas),
        "data":citas
     }
 
-@app.post("/v1/users/", tags=['CRUD Citas'])
-async def agregar_usuarios(usuario:CitasBase):
-    for usr in citas:
-        if usr["id"] == usuario.id:
+@app.post("/v1/citas/", tags=['Citas Medicas'])
+async def agregar_citas(cita:CitasBase):
+    for cts in citas:
+        if cts["id"] == cita.id:
             raise HTTPException(
                 status_code=400,
                 detail= "The id already exist"
             )
-    usuarios.append(usuario)
+    citas.append(cita)
     return{
         "mensaje":"Cita agregada",
         "datos":"200",
         "status":"200"
     }
-    
-@app.put("/v1/users/{id}", tags=['CRUD Usuario'])
-async def actualizar_usuario(id: int, usuario: dict):
-    for idx, usr in enumerate(usuarios):
-        if usr["id"] == id:
-            usuarios[idx].update(usuario)
-            return {
-                "mensaje": "User updated",
-                "datos": citas[idx],
-                "status": "200"
-            }
-    raise HTTPException(
-        status_code=404,
-        detail="User not found"
-    )
 
-@app.delete("/v1/users/{id}", tags=['CRUD Usuario',status.HTTP_200_OK])
-async def eliminar_usuario(id: int, usuarioAuth:str = Depends(verificar_Peticion)):
-    for idx, usr in enumerate(citas):
-        if usr["id"] == id:
-            usuarios.pop(idx)
+@app.put("/v1/citas/{id}", tags=['Citas Medicas'])
+async def confirmar_citas(cita:CitasBase):
+    for cts in citas:
+        if cts["id"] == cita.id:
+            raise HTTPException(
+                status_code=400,
+                detail= "The id already exist"
+            )
+    citas.append(cita)
+    return{
+        "mensaje":"Cita agregada",
+        "datos":"200",
+        "status":"200"
+    }
+
+@app.delete("/v1/citas/{id}", tags=['Citas Medicas',status.HTTP_200_OK])
+async def eliminar_citas(id: int, usuarioAuth:str = Depends(verificar_Peticion)):
+    for idx, cts in enumerate(citas):
+        if cts["id"] == id:
+            citas.pop(idx)
             return {
-                "mensaje": f"Citas eliminada por {usuarioAuth}"
+                "mensaje": f"Cita eliminada por {usuarioAuth}"
             }
     raise HTTPException(
         status_code=404,
